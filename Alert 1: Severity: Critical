@@ -1,2 +1,45 @@
 # SOC
+The alert's full details:
+Timestamp: 2024-03-14 (multi-stage, 9-hour attack)
+Source: SIEM Correlation (Splunk) + EDR + Network + Email Gateway
+--- Attack Timeline (complete chain) ---
+09:14 -- EMAIL: QR code phishing -> j.rodriguez (Finance) clicked, credentials captured (see alert a015)
+09:31 -- INITIAL ACCESS: j.rodriguez credentials used from 185.220.101.198 (AITM session)
+09:33 -- DISCOVERY: M365 email searched for "bank", "wire", "executive", "password"
+09:44 -- PAYLOAD: j.rodriguez downloaded Webex_Update_March2024.exe from attacker link
+09:47 -- EXECUTION: msi.dll side-loaded via Webex -- C2 beacon established (see alert b011)
+11:22 -- CREDENTIAL ACCESS: Mimikatz run on WKS-FINANCE-022 via C2 shell -- 4 hashes captured
+13:07 -- LATERAL MOVEMENT: Pass-the-Hash to PROD-BILLING-01 using svc_billing NTLM hash
+13:15 -- COLLECTION: 14,847 billing records exported from SQL Server (customer PII + payment data)
+15:44 -- EXFILTRATION: 847 MB zip file uploaded to mega.nz (double-extortion staging)
+18:33 -- C2 STILL ACTIVE: PROD-BILLING-01 beaconing to 185.220.101.77:443 (ongoing)
+--- Current Status ---
+Active C2: PROD-BILLING-01 (production billing server -- contains customer payment data)
+Data Exfiltrated: 14,847 customer records (names, addresses, partial card numbers)
+Systems Compromised: WKS-FINANCE-022, PROD-BILLING-01 (confirmed) -- scope unknown
+Breach Notification: Likely required (customer PII + financial data) -- Legal must be looped in
+Ransomware Risk: Double-extortion staging complete -- encryption deployment may be imminent
 
+Notes and what was observed:
+The first thing worth noticing is that the victim is working in finance, meaning has access to a lot of sensitive information that should not be for public or anyone that is not authorized for it.
+Credentials were stolen, for the attacker to authorize deeper in the system. The credentials were used.
+Attacker used a Adversary-in-the-middle attack which follows the sequences that comes next: The victim was lured by clicking on a phishing site the attacker created and the malicious proxy sits between a user and a legitimate service, in order to steal credentials as well as session tokens. 
+The victim clicked then a malicious link to download a .exe file and it established a connection (C2).
+What is also concerning is 4 hashes were obtained and the Mimikatz was ran to obtain said credentials via the C2 Shell. 
+These 4 hashes are confirmed password hashes belonging assumingly to the victim and way it is confirming is because the attack method used was Pass-The-Hash.
+It appears that also the attacker was able to export data of payment data and customer PII about over 24 thousand. Access to the SQL database.
+Then a 847 mb zip file uploaded to mega.nz which means the attacker using a cloud storage service in order to host or exfiltrate data.
+The C2 by the context is still active by beaconing to the IP address of the attacker, meaning there is network communication still going on. Because there is lateral movement on the system. Multiple systems are compromised, There is an active C2 still happening. 
+Customer records stolen.
+First of all, contact the victim, the company for further instructions on what they should do.
+Change the credentials,
+Protect customer records,
+Disconnect and isolate confirmed compromised systems from the network using approved EDR or network controls.
+Contact legal authorities.
+
+Explanations to some attacks:
+
+Pass-The-Hash - attacker steals a user's password hash instead of the plaintext password and reuses it to authenticate to other systems and servers.
+AITM - a malicious proxy sits between a user and a legitimate service to steal session tokens or user's credentials
+Mimikatz - open-source post-exploitation tool used to extract sensitive authentication credentials from Windows operating systems
+Beaconing - a network communication
